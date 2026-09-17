@@ -1,0 +1,26 @@
+
+
+
+services:
+  # قاعدة البيانات بـ Postgres وامتداد pgvector
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: legal_postgres
+    environment:
+      POSTGRES_DB: legal_db
+      POSTGRES_USER: postgres_user
+      POSTGRES_PASSWORD: postgres_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # وسيط المهمات الخلفية Redis
+  redis:
+    image: redis:alpine
+    container_name: legal_redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  pgdata:
