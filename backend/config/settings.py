@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     #added sittings 
     'rest_framework',
     'corsheaders',
-    'core'
+    'core',
 ]
 
 MIDDLEWARE = [
