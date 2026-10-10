@@ -2,6 +2,7 @@
 
 
 services:
+
   # قاعدة البيانات بـ Postgres وامتداد pgvector
   db:
     image: pgvector/pgvector:pg16

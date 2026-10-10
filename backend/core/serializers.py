@@ -1,6 +1,5 @@
 from rest_framework import serializers
-from .models import Document
-
+from .models import Document,Client,Case
 
 class DocumentSerializer(serializers.ModelSerializer):
     # حقل إضافي مش موجود في الموديل: رابط كامل للملف
@@ -25,3 +24,14 @@ class DocumentSerializer(serializers.ModelSerializer):
         if obj.file and request:
             return request.build_absolute_uri(obj.file.url)
         return None
+
+class ClientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Client
+        fields = '__all__'
+
+
+class CaseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Case
+        fields = '__all__'

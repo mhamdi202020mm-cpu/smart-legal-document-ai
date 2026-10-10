@@ -4,8 +4,8 @@ from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import Document
-from .serializers import DocumentSerializer
+from .models import Document,Client,Case
+from .serializers import DocumentSerializer,ClientSerializer, CaseSerializer
 
 
 class DocumentViewSet(viewsets.ModelViewSet):
@@ -19,3 +19,12 @@ class DocumentViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+class ClientViewSet(viewsets.ModelViewSet):
+        queryset = Client.objects.all().order_by('-created_at')
+        serializer_class = ClientSerializer
+
+
+class CaseViewSet(viewsets.ModelViewSet):
+    queryset = Case.objects.all().order_by('-created_at')
+    serializer_class = CaseSerializer
