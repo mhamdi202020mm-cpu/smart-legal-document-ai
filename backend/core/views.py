@@ -1,5 +1,8 @@
 from django.shortcuts import render
 
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
+
 # Create your views here.
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -19,12 +22,22 @@ class DocumentViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    ## filters
+    filterset_fields = ['case', 'status', 'uploaded_by']
+    search_fields = ['title']
+    ordering_fields = ['uploaded_at', 'title']
 
 class ClientViewSet(viewsets.ModelViewSet):
-        queryset = Client.objects.all().order_by('-created_at')
-        serializer_class = ClientSerializer
+    queryset = Client.objects.all().order_by('-created_at')
+    serializer_class = ClientSerializer
+    
+    search_fields = ['name', 'email']
+
 
 
 class CaseViewSet(viewsets.ModelViewSet):
     queryset = Case.objects.all().order_by('-created_at')
     serializer_class = CaseSerializer
+
+    filterset_fields = ['client', 'status']
+    search_fields = ['title']
