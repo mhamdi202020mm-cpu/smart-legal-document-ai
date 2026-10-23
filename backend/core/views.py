@@ -10,6 +10,24 @@ from rest_framework.response import Response
 from .models import Document,Client,Case
 from .serializers import DocumentSerializer,ClientSerializer, CaseSerializer
 
+from rest_framework import generics, permissions
+from .serializers import RegisterSerializer, ProfileSerializer
+from django.contrib.auth import get_user_model 
+User = get_user_model()
+# أي حد يعمل حساب جديد
+class RegisterView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = RegisterSerializer
+    permission_classes = [permissions.AllowAny]   # ← مفتوح للكل
+
+
+# الملف الشخصي: المستخدم يشوف ويعدّل بياناته بس
+class ProfileView(generics.RetrieveUpdateAPIView):
+    serializer_class = ProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]   # ← لازم login!
+
+    def get_object(self):
+        return self.request.user   # ← "أنت ملك نفسك": بيرجع المستخدم الحالي من التوكن
 
 class DocumentViewSet(viewsets.ModelViewSet):
     queryset = Document.objects.all().order_by('-uploaded_at')
