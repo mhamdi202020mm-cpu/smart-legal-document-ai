@@ -39,6 +39,8 @@ class DocumentSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
 
     class Meta:
+        read_only_fields = ['uploaded_by']   # ← الجديد: المستخدم ميقدرش يزوّر الرافع
+        
         model = Document
         fields = ['id', 'title','file', 'file_url', 'status', 'uploaded_by', 'uploaded_at']
         extra_kwargs = {'file': {'write_only': True}}

@@ -45,6 +45,14 @@ class DocumentViewSet(viewsets.ModelViewSet):
     search_fields = ['title']
     ordering_fields = ['uploaded_at', 'title']
 
+    def get_queryset(self):
+        # كل مستخدم يشوف مستنداته بس!
+            return Document.objects.filter(uploaded_by=self.request.user)
+
+    def perform_create(self, serializer):
+        # الرافع هو المستخدم الحالي — من غير ما نسأل حد
+        serializer.save(uploaded_by=self.request.user)
+
 class ClientViewSet(viewsets.ModelViewSet):
     queryset = Client.objects.all().order_by('-created_at')
     serializer_class = ClientSerializer

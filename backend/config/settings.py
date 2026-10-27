@@ -158,7 +158,12 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
 
     ],
+        # ... اللي فيه كله زي ما هو ...
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',   # ← الجديد: لازم login!
+    ],
 }
+
 
 ## TOKENS SITTENGS
 
