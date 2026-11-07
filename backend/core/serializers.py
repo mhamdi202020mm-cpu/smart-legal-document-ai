@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from .models import Document,Client,Case
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 User = get_user_model()
 
@@ -14,9 +16,23 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ['username', 'email', 'password', 'password2', 'phone']
 
+    def validate_email(self, value):
+        value = value.strip().lower()
+        if not value:
+            raise serializers.ValidationError('الإيميل مطلوب!')
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError('الإيميل ده مسجل قبل كده!')
+        return value
+
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError('كلمتا السر غير متطابقتين!')
+            raise serializers.ValidationError({'password2': 'كلمتا السر غير متطابقتين!'})
+        # قوة الباسورد (حسب AUTH_PASSWORD_VALIDATORS في settings)
+        candidate = User(username=attrs.get('username', ''), email=attrs.get('email', ''))
+        try:
+            validate_password(attrs['password'], user=candidate)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError({'password': list(e.messages)})
         return attrs
 
     def create(self, validated_data):
