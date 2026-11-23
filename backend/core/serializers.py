@@ -80,9 +80,17 @@ class ClientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Client
         fields = '__all__'
+        # owner بيتحط من التوكن في perform_create، مش من اللي اليوزر يبعته
+        read_only_fields = ['owner']
 
 
 class CaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Case
         fields = '__all__'
+
+    def validate_client(self, client):
+        # القضية لازم تتربط بعميل بتاع اليوزر الحالي بس
+        if client.owner != self.context['request'].user:
+            raise serializers.ValidationError('العميل ده مش بتاعك!')
+        return client
