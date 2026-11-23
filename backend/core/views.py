@@ -79,8 +79,9 @@ class ClientViewSet(viewsets.ModelViewSet):
 
 
 class CaseViewSet(viewsets.ModelViewSet):
-    queryset = Case.objects.all().order_by('-created_at')
     serializer_class = CaseSerializer
-
     filterset_fields = ['client', 'status']
     search_fields = ['title']
+
+    def get_queryset(self):
+        return Case.objects.filter(client__owner=self.request.user).order_by('-created_at')
