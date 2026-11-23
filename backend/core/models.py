@@ -16,6 +16,12 @@ class Client(models.Model):
     phone = models.CharField(max_length=20, blank=True, verbose_name="الهاتف")
     email = models.EmailField(blank=True, verbose_name="البريد الإلكتروني")
     created_at = models.DateTimeField(auto_now_add=True)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete =models.PROTECT ,
+        related_name='clients',
+        verbose_name="المحامي"
+    )
 
     def __str__(self):
         return self.name

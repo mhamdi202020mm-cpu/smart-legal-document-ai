@@ -66,10 +66,15 @@ class DocumentViewSet(viewsets.ModelViewSet):
         serializer.save(uploaded_by=self.request.user)
 
 class ClientViewSet(viewsets.ModelViewSet):
-    queryset = Client.objects.all().order_by('-created_at')
     serializer_class = ClientSerializer
     
     search_fields = ['name', 'email']
+
+    def get_queryset(self):
+        return Client.objects.filter(owner=self.request.user).order_by('-created_at')
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
 
 
 
