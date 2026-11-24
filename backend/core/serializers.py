@@ -58,8 +58,17 @@ class DocumentSerializer(serializers.ModelSerializer):
         read_only_fields = ['uploaded_by']   # ← الجديد: المستخدم ميقدرش يزوّر الرافع
         
         model = Document
-        fields = ['id', 'title','file', 'file_url', 'status', 'uploaded_by', 'uploaded_at']
+        fields = ['id', 'title', 'file', 'file_url', 'status', 'case', 'uploaded_by', 'uploaded_at']
         extra_kwargs = {'file': {'write_only': True}}
+
+    def validate_case(self, case):
+        # المستند ممكن ما يبقاش تبع قضية — ساعتها مفيش حاجة نتحقق منها
+        if case is None:
+            return case
+        # القضية لازم تكون تبع عميل من عملاء اليوزر الحالي
+        if case.client.owner != self.context['request'].user:
+            raise serializers.ValidationError('القضية دي مش بتاعتك!')
+        return case
 
         # ← الجديد: التحقق من الملف قبل الحفظ
     def validate_file(self, file):
