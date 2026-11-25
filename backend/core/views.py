@@ -12,6 +12,7 @@ from .serializers import (
     CaseSerializer,
     RegisterSerializer,
     ProfileSerializer,
+    ChangePasswordSerializer,
 )
 
 User = get_user_model()
@@ -42,6 +43,19 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user   # ← "أنت ملك نفسك": بيرجع المستخدم الحالي من التوكن
+
+
+# تغيير كلمة السر
+class ChangePasswordView(generics.GenericAPIView):
+    serializer_class = ChangePasswordSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        # set_password بيشفّر الباسورد — عمرك ما تكتب user.password = ... مباشرة
+        request.user.set_password(serializer.validated_data['new_password'])
+        request.user.save()
+        return Response({'detail': 'تم تغيير كلمة السر.'})
 
 
 class DocumentViewSet(viewsets.ModelViewSet):

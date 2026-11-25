@@ -42,11 +42,26 @@ function DocumentsPage() {
     }
   };
 
+  // تسجيل الخروج: نلغي الـ refresh token على السيرفر، وفي كل الأحوال نمسح التوكنات
+  const logout = async () => {
+    const refresh = localStorage.getItem('refresh_token');
+    try {
+      await api.post('/auth/logout/', { refresh });
+    } catch (err) {
+      // حتى لو السيرفر رفض (توكن قديم مثلًا)، نكمّل الخروج
+    } finally {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      navigate('/login');
+    }
+  };
+
   if (loading) return <p style={{ padding: '20px' }}>⏳ جاري التحميل...</p>;
   if (error) return <p style={{ padding: '20px', color: 'red' }}>{error}</p>;
 
   return (
     <div dir="rtl" style={{ padding: '20px' }}>
+      <button onClick={logout} style={{ float: 'left' }}>🚪 تسجيل الخروج</button>
       <h1>📁 المستندات القانونية</h1>
       {documents.length === 0 && <p>مفيش مستندات لسه — ارفع أول واحد!</p>}
       <ul style={{ listStyle: 'none', padding: 0 }}>

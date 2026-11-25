@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from rest_framework.test import APITestCase
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import Client, Case, Document
 
@@ -25,7 +26,7 @@ class OwnershipIsolationTests(APITestCase):
         self.client.force_authenticate(self.sara)
         res = self.client.get('/api/clients/')
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(len(res.json()), 0)
+        self.assertEqual(res.json()['count'], 0)
 
     def test_other_users_client_is_404(self):
         self.client.force_authenticate(self.sara)
@@ -48,7 +49,7 @@ class OwnershipIsolationTests(APITestCase):
     def test_user_sees_only_own_cases(self):
         self.client.force_authenticate(self.sara)
         res = self.client.get('/api/cases/')
-        self.assertEqual(len(res.json()), 0)
+        self.assertEqual(res.json()['count'], 0)
 
     def test_cannot_create_case_on_other_users_client(self):
         self.client.force_authenticate(self.sara)
@@ -110,7 +111,7 @@ class DocumentCaseLinkTests(APITestCase):
             'title': 'برة القضية', 'file': self.make_pdf(),
         }, format='multipart')
         res = self.client.get(f'/api/documents/?case={self.case_a.id}')
-        titles = [d['title'] for d in res.json()]
+        titles = [d['title'] for d in res.json()['results']]
         self.assertEqual(titles, ['في القضية'])
 
 
@@ -164,3 +165,37 @@ class DocumentFileTests(APITestCase):
         self.assertTrue(os.path.exists(path))
         self.client.delete(f'/api/documents/{doc_id}/')
         self.assertFalse(os.path.exists(path))
+
+
+class AuthTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user('ahmed_t', 'a@t.com', 'StrongPass#123')
+
+    def test_logout_blocks_refresh_token(self):
+        refresh = str(RefreshToken.for_user(self.user))
+        res = self.client.post('/api/auth/logout/', {'refresh': refresh})
+        self.assertEqual(res.status_code, 200)
+        res = self.client.post('/api/auth/token/refresh/', {'refresh': refresh})
+        self.assertEqual(res.status_code, 401)
+
+    def test_change_password(self):
+        self.client.force_authenticate(self.user)
+        res = self.client.post('/api/auth/change-password/', {
+            'old_password': 'StrongPass#123', 'new_password': 'EvenStronger#456',
+        })
+        self.assertEqual(res.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('EvenStronger#456'))
+
+    def test_change_password_wrong_old(self):
+        self.client.force_authenticate(self.user)
+        res = self.client.post('/api/auth/change-password/', {
+            'old_password': 'wrong', 'new_password': 'EvenStronger#456',
+        })
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('old_password', res.json())
+
+    def test_pagination_shape(self):
+        self.client.force_authenticate(self.user)
+        res = self.client.get('/api/documents/')
+        self.assertEqual(set(res.json().keys()), {'count', 'next', 'previous', 'results'})

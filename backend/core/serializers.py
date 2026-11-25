@@ -49,6 +49,26 @@ class ProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'username', 'date_joined']   # ← دي للعرض بس
 
 
+# تغيير كلمة السر — مش مربوط بجدول، فـ Serializer عادي مش ModelSerializer
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True)
+
+    def validate_old_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError('كلمة السر القديمة غلط!')
+        return value
+
+    def validate_new_password(self, value):
+        user = self.context['request'].user
+        try:
+            validate_password(value, user=user)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(list(e.messages))
+        return value
+
+
 
 
 class DocumentSerializer(serializers.ModelSerializer):
