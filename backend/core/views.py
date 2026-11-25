@@ -1,20 +1,23 @@
-from django.shortcuts import render
-
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
-
-# Create your views here.
-from rest_framework import viewsets, status
+from django.contrib.auth import get_user_model
+from django.http import FileResponse
+from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import Document,Client,Case
-from .serializers import DocumentSerializer,ClientSerializer, CaseSerializer
-
-from rest_framework import generics, permissions
-from .serializers import RegisterSerializer, ProfileSerializer
-from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from .models import Document, Client, Case
+from .serializers import (
+    DocumentSerializer,
+    ClientSerializer,
+    CaseSerializer,
+    RegisterSerializer,
+    ProfileSerializer,
+    ChangePasswordSerializer,
+)
+
 User = get_user_model()
+
+
 # أي حد يعمل حساب جديد
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -41,41 +44,67 @@ class ProfileView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         return self.request.user   # ← "أنت ملك نفسك": بيرجع المستخدم الحالي من التوكن
 
-class DocumentViewSet(viewsets.ModelViewSet):
-    queryset = Document.objects.all().order_by('-uploaded_at')
-    serializer_class = DocumentSerializer
 
-        # ← الجديد: endpoint مخصوص للرفع على /api/documents/upload/
-    @action(detail=False, methods=['post'])
-    def upload(self, request):
+# تغيير كلمة السر
+class ChangePasswordView(generics.GenericAPIView):
+    serializer_class = ChangePasswordSerializer
+
+    def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    ## filters
-    filterset_fields = ['case', 'status', 'uploaded_by']
+        # set_password بيشفّر الباسورد — عمرك ما تكتب user.password = ... مباشرة
+        request.user.set_password(serializer.validated_data['new_password'])
+        request.user.save()
+        return Response({'detail': 'تم تغيير كلمة السر.'})
+
+
+class DocumentViewSet(viewsets.ModelViewSet):
+    serializer_class = DocumentSerializer
+    filterset_fields = ['case', 'status']
     search_fields = ['title']
     ordering_fields = ['uploaded_at', 'title']
 
     def get_queryset(self):
         # كل مستخدم يشوف مستنداته بس!
-            return Document.objects.filter(uploaded_by=self.request.user)
+        return Document.objects.filter(uploaded_by=self.request.user).order_by('-uploaded_at')
 
     def perform_create(self, serializer):
         # الرافع هو المستخدم الحالي — من غير ما نسأل حد
         serializer.save(uploaded_by=self.request.user)
 
+    def perform_destroy(self, instance):
+        # امسح المستند من الداتابيز الأول، وبعدين الملف من الهارد
+        file = instance.file
+        instance.delete()
+        file.delete(save=False)
+
+    @action(detail=True, methods=['get'])
+    def download(self, request, pk=None):
+        # get_object بيدوّر جوه get_queryset ← مستند حد تاني = 404
+        document = self.get_object()
+        return FileResponse(
+            document.file.open('rb'),
+            content_type='application/pdf',
+            filename=f'{document.title}.pdf',
+        )
+
 class ClientViewSet(viewsets.ModelViewSet):
-    queryset = Client.objects.all().order_by('-created_at')
     serializer_class = ClientSerializer
     
     search_fields = ['name', 'email']
 
+    def get_queryset(self):
+        return Client.objects.filter(owner=self.request.user).order_by('-created_at')
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
 
 
 class CaseViewSet(viewsets.ModelViewSet):
-    queryset = Case.objects.all().order_by('-created_at')
     serializer_class = CaseSerializer
-
     filterset_fields = ['client', 'status']
     search_fields = ['title']
+
+    def get_queryset(self):
+        return Case.objects.filter(client__owner=self.request.user).order_by('-created_at')

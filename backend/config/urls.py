@@ -15,17 +15,19 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path,include
-from django.conf import settings
-from django.conf.urls.static import static
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from django.urls import path, include
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+    TokenBlacklistView,
+)
 
-
-
+# ملفات الـ PDF مش بتتخدم من /media/ خلاص — بتتنزل من /api/documents/<id>/download/ بعد التأكد من الصلاحية
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/',include('core.urls')),
+    path('api/', include('core.urls')),
     path('api/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-]+ static(settings.MEDIA_URL,
-document_root=settings.MEDIA_ROOT)
+    # تسجيل الخروج: بيحط الـ refresh token في القايمة السودا
+    path('api/auth/logout/', TokenBlacklistView.as_view(), name='logout'),
+]
