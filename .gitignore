@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Django: uploaded user files (PDFs) never go to git
+backend/media/
