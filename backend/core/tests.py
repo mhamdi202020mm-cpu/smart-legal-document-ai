@@ -199,3 +199,36 @@ class AuthTests(APITestCase):
         self.client.force_authenticate(self.user)
         res = self.client.get('/api/documents/')
         self.assertEqual(set(res.json().keys()), {'count', 'next', 'previous', 'results'})
+
+
+class RegisterTests(APITestCase):
+    url = '/api/auth/register/'
+
+    def data(self, **changes):
+        # بيانات تسجيل سليمة — كل اختبار بيبوّظ حاجة واحدة بس
+        d = {'username': 'newuser', 'email': 'new@t.com',
+             'password': 'StrongPass#123', 'password2': 'StrongPass#123'}
+        d.update(changes)
+        return d
+
+    def test_register_success_returns_tokens(self):
+        res = self.client.post(self.url, self.data())
+        self.assertEqual(res.status_code, 201)
+        self.assertIn('access', res.json())
+        self.assertIn('refresh', res.json())
+
+    def test_duplicate_email_rejected(self):
+        User.objects.create_user('old', 'new@t.com', 'StrongPass#123')
+        res = self.client.post(self.url, self.data(email='NEW@t.com'))
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('email', res.json())
+
+    def test_password_mismatch_rejected(self):
+        res = self.client.post(self.url, self.data(password2='Other#12345'))
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('password2', res.json())
+
+    def test_weak_password_rejected(self):
+        res = self.client.post(self.url, self.data(password='12345678', password2='12345678'))
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('password', res.json())
