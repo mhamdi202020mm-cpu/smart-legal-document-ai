@@ -29,6 +29,19 @@ function DocumentsPage() {
       });
   }, [navigate]);
 
+  // الملف محمي بالتوكن، فبنجيبه عن طريق api (اللي بيحط التوكن) بدل رابط <a> عادي
+  const openFile = async (doc) => {
+    try {
+      const response = await api.get(`/documents/${doc.id}/download/`, {
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(response.data);
+      window.open(url, '_blank');
+    } catch (err) {
+      setError('مش قادر أفتح الملف');
+    }
+  };
+
   if (loading) return <p style={{ padding: '20px' }}>⏳ جاري التحميل...</p>;
   if (error) return <p style={{ padding: '20px', color: 'red' }}>{error}</p>;
 
@@ -44,9 +57,9 @@ function DocumentsPage() {
           >
             <strong>{doc.title}</strong>
             <span style={{ marginRight: '10px', color: '#666' }}>({doc.status})</span>
-            <a href={doc.file_url} target="_blank" rel="noreferrer" style={{ marginRight: '10px' }}>
+            <button onClick={() => openFile(doc)} style={{ marginRight: '10px' }}>
               📄 عرض الملف
-            </a>
+            </button>
           </li>
         ))}
       </ul>

@@ -3,6 +3,7 @@ from .models import Document,Client,Case
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.urls import reverse
 
 User = get_user_model()
 
@@ -76,14 +77,19 @@ class DocumentSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('مسموح بملفات PDF فقط!')
         if file.size > 10 * 1024 * 1024:  # 10 ميجا
             raise serializers.ValidationError('حجم الملف أكبر من 10 ميجابايت!')
+        # أي PDF حقيقي بيبدأ بـ %PDF- — مش كفاية نصدّق الامتداد
+        header = file.read(5)
+        file.seek(0)   # نرجّع المؤشر لأول الملف عشان يتحفظ كامل
+        if header != b'%PDF-':
+            raise serializers.ValidationError('الملف ده مش PDF حقيقي!')
         return file
-    
+
     def get_file_url(self, obj):
-        # بنبني الرابط الكامل: http://127.0.0.1:8000/media/documents/...
+        # رابط التنزيل المحمي: http://127.0.0.1:8000/api/documents/5/download/
         request = self.context.get('request')
-        if obj.file and request:
-            return request.build_absolute_uri(obj.file.url)
-        return None
+        if request is None:
+            return None
+        return request.build_absolute_uri(reverse('document-download', args=[obj.pk]))
 
 class ClientSerializer(serializers.ModelSerializer):
     class Meta:

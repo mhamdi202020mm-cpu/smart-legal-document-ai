@@ -1,3 +1,4 @@
+import os
 import tempfile
 
 from django.contrib.auth import get_user_model
@@ -111,3 +112,55 @@ class DocumentCaseLinkTests(APITestCase):
         res = self.client.get(f'/api/documents/?case={self.case_a.id}')
         titles = [d['title'] for d in res.json()]
         self.assertEqual(titles, ['في القضية'])
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class DocumentFileTests(APITestCase):
+    """التحقق من الملف + حماية التنزيل + مسح الملف."""
+
+    def setUp(self):
+        self.ahmed = User.objects.create_user('ahmed_t', 'a@t.com', 'StrongPass#123')
+        self.sara = User.objects.create_user('sara_t', 's@t.com', 'StrongPass#123')
+
+    def upload(self, user, name='test.pdf', content=b'%PDF-1.4 test'):
+        self.client.force_authenticate(user)
+        f = SimpleUploadedFile(name, content, content_type='application/pdf')
+        return self.client.post('/api/documents/', {'title': 'مستند', 'file': f}, format='multipart')
+
+    def test_rejects_non_pdf_extension(self):
+        res = self.upload(self.ahmed, name='virus.exe')
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('file', res.json())
+
+    def test_rejects_fake_pdf(self):
+        res = self.upload(self.ahmed, content=b'MZ this is not a pdf')
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('file', res.json())
+
+    def test_rejects_too_big_file(self):
+        big = b'%PDF-' + b'0' * (10 * 1024 * 1024)
+        res = self.upload(self.ahmed, content=big)
+        self.assertEqual(res.status_code, 400)
+
+    def test_owner_can_download(self):
+        doc_id = self.upload(self.ahmed).json()['id']
+        res = self.client.get(f'/api/documents/{doc_id}/download/')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(b''.join(res.streaming_content), b'%PDF-1.4 test')
+
+    def test_other_user_cannot_download(self):
+        doc_id = self.upload(self.ahmed).json()['id']
+        self.client.force_authenticate(self.sara)
+        res = self.client.get(f'/api/documents/{doc_id}/download/')
+        self.assertEqual(res.status_code, 404)
+
+    def test_file_url_points_to_download(self):
+        res = self.upload(self.ahmed)
+        self.assertTrue(res.json()['file_url'].endswith(f"/api/documents/{res.json()['id']}/download/"))
+
+    def test_delete_removes_file_from_disk(self):
+        doc_id = self.upload(self.ahmed).json()['id']
+        path = Document.objects.get(id=doc_id).file.path
+        self.assertTrue(os.path.exists(path))
+        self.client.delete(f'/api/documents/{doc_id}/')
+        self.assertFalse(os.path.exists(path))

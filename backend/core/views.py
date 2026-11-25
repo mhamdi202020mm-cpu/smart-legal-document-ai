@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.http import FileResponse
 
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
@@ -64,6 +65,22 @@ class DocumentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # الرافع هو المستخدم الحالي — من غير ما نسأل حد
         serializer.save(uploaded_by=self.request.user)
+
+    def perform_destroy(self, instance):
+        # امسح المستند من الداتابيز الأول، وبعدين الملف من الهارد
+        file = instance.file
+        instance.delete()
+        file.delete(save=False)
+
+    @action(detail=True, methods=['get'])
+    def download(self, request, pk=None):
+        # get_object بيدوّر جوه get_queryset ← مستند حد تاني = 404
+        document = self.get_object()
+        return FileResponse(
+            document.file.open('rb'),
+            content_type='application/pdf',
+            filename=f'{document.title}.pdf',
+        )
 
 class ClientViewSet(viewsets.ModelViewSet):
     serializer_class = ClientSerializer
